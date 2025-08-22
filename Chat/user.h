@@ -5,6 +5,7 @@
 #include <QDateTime>
 #include <QMetaType>
 #include <QObject>
+#include <QFileInfoList>
 
 struct frontdata
 {
@@ -22,14 +23,16 @@ class User : public QObject
 public:
     User();
     User(QString name, QString avatar);
-    bool AddHistory(const char* data, QString Owner);
-    bool LoadHistory(QString name);
-    void parseFile(const QString filepath);
-    bool parseLine(const QString &line, frontdata &message);
+//    bool AddHistory(const char* data, QString Owner);
+//    bool LoadHistory(QString name);
+//    void parseFile(const QString filepath);
+//    bool parseLine(const QString &line, frontdata &message);
     QString GetName();
-    bool MkDir(QString path);
-signals:
-    void newMessageParsed(frontdata);
+//    bool MkDir(QString path);
+//    QStringList listFilesInDirectory(const QString &dirPath);
+//    QFileInfoList getSortedTxtFiles(const QString &directoryPath);
+//signals:
+//    void newMessageParsed(frontdata);
 private:
     QString _name;
     QString _avatar; //头像

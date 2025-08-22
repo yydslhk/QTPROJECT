@@ -3,6 +3,12 @@
 #include <QDebug>
 #include <QDir>
 #include "user.h"
+#include "NetWork/networkmanager.h"
+#include <QNetworkReply>
+#include <QJsonDocument>
+#include <QListWidget>
+#include <QThread>
+#include <QtConcurrent/QtConcurrentRun>
 MyChat::MyChat(QWidget *parent) :
     BaseWindow(parent),
     ui(new Ui::MyChat)
@@ -18,20 +24,26 @@ MyChat::~MyChat()
 
 void MyChat::AddChatItem(const QString &userId, const QString &username, const QString &lastMessage, const QString &avatarPath, int unreadCount)
 {
-    ui->listWidget->addChatItem(userId, username, lastMessage, avatarPath, unreadCount);
-    ChatListItem* item = new ChatListItem();
-    item = ui->listWidget->GetItem(username).get();
+    QListWidgetItem* ChatItem = ui->listWidget->addChatItem(userId, username, lastMessage, avatarPath, unreadCount);
+    ChatListItem* item = qobject_cast<ChatListItem*>(ui->listWidget->itemWidget(ChatItem));
+//    item = ui->listWidget->GetItem(username).get();
+//    QThread* thread = new QThread();
+    connect(item, &ChatListItem::newMessageParsed, this, [=](frontdata data)
+    {
+        QtConcurrent::run([this, data]() {
+            // 在新线程中处理消息（非UI操作）
+            ui->message_history->addMessage(data.content, data.isMe, data.sender, data.avatar, true);
+        });
+    });
     connect(item, &ChatListItem::itemClicked, this, [=](const QString& id)
     {
-        User* newuser = new User(id, avatarPath);
-        User* Me = new User(name, "");
-        ui->message_history->SetCurrentUser(newuser);
+        ui->message_history->SetCurrentItem(item);
         ui->message_history->clearMessages();
-        newuser->LoadHistory(name);
-        connect(newuser, &User::newMessageParsed, this, [this](frontdata data)
-        {
-            this->ui->message_history->addMessage(data.content, data.isMe, data.sender, data.avatar, true);
+        QtConcurrent::run([item, username]() {
+            qDebug() << "click";
+            item->LoadHistory(username);
         });
+//        item->LoadHistory(name);
     });
 }
 
@@ -59,6 +71,7 @@ bool MyChat::MkDir(QString path)
 void MyChat::SetName(QString name)
 {
     this->name = name;
+    ui->message_history->SetMe(new User(name, ":/avatars/user1.png"));
 }
 
 void MyChat::addtest()
@@ -69,42 +82,96 @@ void MyChat::addtest()
     ui->message_history->addMessage("你好！", false, "张三", ":/avatars/user1.png", false);
 }
 
+void MyChat::Chat2AI()
+{
+    if(ui->message->toPlainText().size() == 0)
+    {
+        return;
+    }
+    QJsonObject obj;
+    obj["username"] = "user";
+    obj["message"] = ui->message->toPlainText();
+    auto reply = NetWorkManager::getinstance()->SendForm("/chat", obj);
+    connect(reply, &QNetworkReply::finished, this, [=]()
+    {
+        QByteArray data = reply->readAll();
+        if(data.size() > 0)
+        {
+            auto doc = QJsonDocument::fromJson(data);
+            auto ret = doc.object();
+            if(ret["result"].toInt() == 1)
+            {
+                ui->message_history->addMessage(ret["message"].toString(), false, "AI", "", false);
+            }
+        }
+    });
+}
+
 void MyChat::on_pushButton_clicked()
 {
+    if(ui->message->toPlainText().size() == 0)
+    {
+        return;
+    }
+    Chat2AI();
     ui->message_history->addMessage(ui->message->toPlainText(), true, name, ":/avatars/user1.png", false);
     ui->message->clear();
 }
 
 void MyChat::loadhistory()
 {
-    // TODO: 给每个用户创建一个文件用来保存记录,每次点击都加载文件。
     // 1. 加载当前界面左侧的历史
-    QFileInfoList dirlist = listSubdirsSortedByTime("MessageHistory/"+name);
+
+    QList<FolderInfo> dirlist = listSubdirsSortedByTime(path+name);
     // 2. 得到文件夹下面的所有子文件夹，按修改时间排列，依次添加到左侧的框，
     for(auto dirInfo :dirlist)
     {
-        QFileInfoList list = dirInfo.dir().entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot);
+        AddChatItem("User", dirInfo.name, "", "", 0);
     }
-//    AddChatItem("user1", "");
 }
 
-bool MyChat::compareByLastModified(const QFileInfo &a, const QFileInfo &b) {
-    return a.lastModified() > b.lastModified();
+bool MyChat::compareByLastModified(const FolderInfo &a, const FolderInfo &b) {
+    return a.lastModified > b.lastModified;
 }
 
-QFileInfoList MyChat::listSubdirsSortedByTime(const QString &folderPath) {
+
+QList<FolderInfo> MyChat::listSubdirsSortedByTime(const QString &folderPath) {
     QDir dir(folderPath);
+    QList<FolderInfo> subfolders;
+    if (dir.exists()) {
+        qDebug() << "文件存在";
+        dir.setFilter(QDir::Dirs | QDir::NoDotAndDotDot);  // 只列出子文件夹，不包括"."和".."
+        QFileInfoList folderList = dir.entryInfoList();
+        qDebug() << "文件夹中的子文件夹的数量为" << folderList.size();
 
-    // 设置过滤器：只获取子目录（不包含文件）
-    QFileInfoList dirList = dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot);
-    if (dirList.isEmpty()) {
-        qDebug() << "文件夹中没有子目录！";
-        return dirList;
+        for (const QFileInfo &folder : folderList) {
+            FolderInfo folderInfo;
+            folderInfo.path = folder.absoluteFilePath();
+            folderInfo.lastModified = folder.lastModified();
+            folderInfo.name = folder.fileName();
+            subfolders.append(folderInfo);
+        }
+
+        std::sort(subfolders.begin(), subfolders.end(), compareByLastModified);  // 按修改时间排序
+    }
+    else
+    {
+        qDebug() << "文件夹不存在";
     }
 
-    // 按修改时间排序（最新到最老）
-    std::sort(dirList.begin(), dirList.end(), compareByLastModified);
+    return subfolders;
+}
 
-    // 输出排序后的子目录列表
-    return dirList;
+QStringList MyChat::listFilesInDirectory(const QString &dirPath) {
+    QDir directory(dirPath);
+
+    // 设置过滤器：只获取文件（排除子目录）
+    QStringList filters;
+    filters << "*.txt"; // 匹配所有文件（可根据需求修改，如 "*.txt"）
+
+    // 获取文件列表
+    QStringList files = directory.entryList(filters, QDir::Files | QDir::NoDotAndDotDot);
+
+    // 打印文件列表
+    return filters;
 }

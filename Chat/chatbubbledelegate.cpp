@@ -50,7 +50,7 @@ void ChatBubbleDelegate::paint(QPainter *painter, const QStyleOptionViewItem &op
         // 绘制时间（右下角）
         painter->setPen(QColor(220, 220, 220));
         painter->setFont(QFont(option.font.family(), 8));
-        QString timeStr = time.toString("yy:mm:dd:hh:mm:ss");
+        QString timeStr = time.toString("hh:mm:ss");
         painter->drawText(QRect(bubbleX, bubbleY + bubbleHeight + 2, bubbleWidth, 15),
                         Qt::AlignRight | Qt::AlignTop, timeStr);
     } else {
@@ -84,7 +84,7 @@ void ChatBubbleDelegate::paint(QPainter *painter, const QStyleOptionViewItem &op
         // 绘制时间（左下角）
         painter->setPen(QColor(150, 150, 150));
         painter->setFont(QFont(option.font.family(), 8));
-        QString timeStr = time.toString("hh:mm");
+        QString timeStr = time.toString("hh:mm:ss");
         painter->drawText(QRect(bubbleX, bubbleY + bubbleHeight + 2, bubbleWidth, 15),
                         Qt::AlignLeft | Qt::AlignTop, timeStr);
     }

@@ -49,7 +49,8 @@ void MainWindow::on_login_clicked()
                 uuid = obj["token"].toString();
                 username = obj["username"].toString();
                 chat->SetName(username);
-                chat->addtest();
+
+                chat->loadhistory();
                 chat->show();
                 home_page->show();
             }
@@ -115,5 +116,4 @@ void MainWindow::LogOut()
     obj["username"] = username;
 
     auto reply = NetWorkManager::getinstance()->SendForm("/logout", obj);
-    QThread::msleep(10000);
 }

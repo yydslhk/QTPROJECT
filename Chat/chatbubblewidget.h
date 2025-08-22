@@ -5,6 +5,7 @@
 #include <QListView>
 #include <QStandardItemModel>
 #include "chatbubbledelegate.h"
+#include "chatlistitem.h"
 #include "user.h"
 
 class ChatBubbleWidget : public QWidget
@@ -32,12 +33,15 @@ public:
 
     void SetMe(User* user);
 
+    void SetCurrentItem(ChatListItem* item);
+
 private:
     void initUI();
 
     QListView *m_messageListView;
     QStandardItemModel *m_messageModel;
     ChatBubbleDelegate *m_bubbleDelegate;
+    ChatListItem* current_item;
     User* current_user;
     User* Me;
 };

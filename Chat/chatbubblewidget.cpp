@@ -57,7 +57,7 @@ void ChatBubbleWidget::addMessage(const QString &content, bool isMe,
         // 如果没有，将它添加进历史并保存文件。
         QString writedata = (isMe ? "1" : "0") + QString("@") + content + "@" + sender + "@" +
                                    avatar + "@" + QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss.zzz") + "\r\n";
-        current_user->AddHistory(writedata.toStdString().c_str(), Me->GetName());
+        current_item->AddHistory(writedata.toStdString().c_str(), Me->GetName());
         qDebug() << "写入的数据为" << writedata;
     }
 }
@@ -99,4 +99,9 @@ void ChatBubbleWidget::SetCurrentUser(User *user)
 void ChatBubbleWidget::SetMe(User *user)
 {
     Me = user;
+}
+
+void ChatBubbleWidget::SetCurrentItem(ChatListItem *item)
+{
+    this->current_item = item;
 }
